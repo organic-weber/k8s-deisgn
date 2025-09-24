@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: assignment-app
+  namespace: design
+  labels: { app: assignment-app }
+spec:
+  selector: { app: assignment-app }
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  # テストで直接叩きたい時は NodePort を有効化
+  # type: NodePort
+  # nodePort: 30080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assignment-app
+  namespace: design
+  labels: { app: assignment-app }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: assignment-app }
+  template:
+    metadata:
+      labels: { app: assignment-app }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: app
+          # TODO: ご自身のビルド済みイメージに変更
+          image: docker.io/ryosuke2006/design:v2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef: { name: app-secrets }
+            - configMapRef: { name: app-config }
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /api/v1/posts?page=1&limit=1
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/v1/posts?page=1&limit=1
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc

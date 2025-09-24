@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: assignment-app
+  namespace: design
+  labels: { app: assignment-app }
+  annotations:
+    # Cilium Ingress を使用
+    kubernetes.io/ingress.class: "cilium"
+    # タイムアウトやリトライは必要に応じて
+    # ingress.cilium.io/proxy-read-timeout: "30s"
+spec:
+  ingressClassName: cilium
+  rules:
+    - host: backend.172.17.0.3.nip.io  # TODO: 適切なホスト名に変更
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: assignment-app
+                port:
+                  number: 8080
